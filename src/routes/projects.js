@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const db = require('../db');
+const requireAuth = require('../middleware/requireAuth');
+
+// All project routes require authentication
+router.use(requireAuth);
 
 // POST /api/projects — Create a new project
 router.post('/', (req, res) => {
@@ -15,8 +19,8 @@ router.post('/', (req, res) => {
 
   try {
     db.prepare(
-      'INSERT INTO projects (id, name, api_key) VALUES (?, ?, ?)'
-    ).run(id, name.trim(), apiKey);
+      'INSERT INTO projects (id, user_id, name, api_key) VALUES (?, ?, ?, ?)'
+    ).run(id, req.user.id, name.trim(), apiKey);
 
     const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
     res.status(201).json(project);
@@ -26,10 +30,12 @@ router.post('/', (req, res) => {
   }
 });
 
-// GET /api/projects — List all projects
+// GET /api/projects — List current user's projects
 router.get('/', (req, res) => {
   try {
-    const projects = db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
+    const projects = db.prepare(
+      'SELECT * FROM projects WHERE user_id = ? ORDER BY created_at DESC'
+    ).all(req.user.id);
     res.json(projects);
   } catch (err) {
     console.error(err);
@@ -37,10 +43,12 @@ router.get('/', (req, res) => {
   }
 });
 
-// GET /api/projects/:id — Get a single project
+// GET /api/projects/:id — Get a single project (only if owned by user)
 router.get('/:id', (req, res) => {
   try {
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id);
+    const project = db.prepare(
+      'SELECT * FROM projects WHERE id = ? AND user_id = ?'
+    ).get(req.params.id, req.user.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
     res.json(project);
   } catch (err) {
@@ -49,10 +57,12 @@ router.get('/:id', (req, res) => {
   }
 });
 
-// DELETE /api/projects/:id — Delete a project (and its comments via CASCADE)
+// DELETE /api/projects/:id — Delete a project (only if owned by user)
 router.delete('/:id', (req, res) => {
   try {
-    const result = db.prepare('DELETE FROM projects WHERE id = ?').run(req.params.id);
+    const result = db.prepare(
+      'DELETE FROM projects WHERE id = ? AND user_id = ?'
+    ).run(req.params.id, req.user.id);
     if (result.changes === 0) return res.status(404).json({ error: 'Project not found' });
     res.json({ success: true });
   } catch (err) {

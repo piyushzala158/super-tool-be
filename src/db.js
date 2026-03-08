@@ -11,8 +11,18 @@ db.pragma('foreign_keys = ON');
 
 // Create tables
 db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id          TEXT PRIMARY KEY,
+    google_id   TEXT NOT NULL UNIQUE,
+    email       TEXT NOT NULL,
+    name        TEXT,
+    avatar_url  TEXT,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS projects (
     id          TEXT PRIMARY KEY,
+    user_id     TEXT REFERENCES users(id) ON DELETE CASCADE,
     name        TEXT NOT NULL,
     api_key     TEXT NOT NULL UNIQUE,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -33,6 +43,13 @@ db.exec(`
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
+// Migration: add user_id to projects if it doesn't exist
+try {
+  db.exec(`ALTER TABLE projects ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE CASCADE`);
+} catch (_) {
+  // Column already exists
+}
 
 // Migration: add device info columns if they don't exist yet
 const migrationColumns = ['browser', 'os', 'window_size', 'dpr'];
