@@ -12,9 +12,12 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
-// CORS — allow frontend origin with credentials for cookies
+// CORS — dynamic: frontend gets credentials support, widget origins get permissive access
 app.use(cors({
-  origin: [FRONTEND_URL, 'http://localhost:5173'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (file://, curl, etc.) or any origin
+    callback(null, true);
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'x-api-key'],
   credentials: true,
