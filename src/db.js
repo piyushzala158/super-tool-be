@@ -26,8 +26,23 @@ db.exec(`
     y_percent   REAL NOT NULL,
     message     TEXT NOT NULL,
     author_name TEXT,
+    browser     TEXT,
+    os          TEXT,
+    window_size TEXT,
+    dpr         REAL,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
+// Migration: add device info columns if they don't exist yet
+const migrationColumns = ['browser', 'os', 'window_size', 'dpr'];
+for (const col of migrationColumns) {
+  try {
+    const type = col === 'dpr' ? 'REAL' : 'TEXT';
+    db.exec(`ALTER TABLE comments ADD COLUMN ${col} ${type}`);
+  } catch (_) {
+    // Column already exists — ignore
+  }
+}
 
 module.exports = db;

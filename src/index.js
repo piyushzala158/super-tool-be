@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3001;
 // CORS — allow all origins so the widget can call from any site
 app.use(cors({
   origin: '*',
-  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'x-api-key'],
 }));
 
