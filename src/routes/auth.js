@@ -76,7 +76,7 @@ router.get('/google/callback', async (req, res) => {
       path: '/',
     });
 
-    res.redirect(FRONTEND_URL);
+    res.redirect(`${FRONTEND_URL}/dashboard`);
   } catch (err) {
     console.error('[Auth] Google callback error:', err);
     res.redirect(`${FRONTEND_URL}/login?error=auth_failed`);
