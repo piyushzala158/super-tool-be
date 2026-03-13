@@ -8,8 +8,8 @@ Express + SQLite backend for the Super Tool comment widget platform. It manages 
 - JWT auth stored in an HTTP-only cookie
 - SQLite database with automatic table creation on startup
 - Authenticated project CRUD endpoints
-- API-key-protected comment write/update/delete endpoints
-- Public comment fetch endpoint
+- Project membership and owner-managed team access
+- Session-protected widget and comment access
 - Static widget delivery from `/widget.js`
 - Basic health check endpoint
 
@@ -26,13 +26,9 @@ Express + SQLite backend for the Super Tool comment widget platform. It manages 
 ```text
 src/
   index.js              Express app entry point
-  db.js                 SQLite setup and lightweight migrations
-  middleware/
-    requireAuth.js      Cookie/JWT auth guard
-  routes/
-    auth.js             Google auth and session endpoints
-    projects.js         Protected project routes
-    comments.js         Comment API routes
+  app/                  App bootstrap, config, middleware
+  features/             Auth, projects, comments, widget modules
+  shared/db/            SQLite connection and migrations
 ```
 
 ## Prerequisites
@@ -50,6 +46,8 @@ FRONTEND_URL=http://localhost:5173
 JWT_SECRET=replace-with-a-long-random-string
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
+COOKIE_SAMESITE=none
+COOKIE_SECURE=true
 ```
 
 ### Google OAuth Redirect URI
@@ -105,28 +103,28 @@ http://localhost:3001
 - `GET /auth/google/callback` exchanges the auth code, creates or updates the user, then sets the `ck_token` cookie
 - `GET /api/auth/me` returns the authenticated user from the cookie
 - `POST /api/auth/logout` clears the auth cookie
-- `GET /api/auth/verify-widget` checks whether a user owns a project before showing the widget
+- `GET /api/widget/access?projectId=<id>` checks whether the current logged-in user can use the widget
 
 ## API Overview
 
 ### Public
 
 - `GET /health`
-- `GET /api/comments?projectId=<id>&url=<page-url>`
-- `GET /api/auth/verify-widget?userId=<id>&projectId=<id>`
 - `GET /widget.js`
 
 ### Authenticated by cookie
 
 - `GET /api/auth/me`
 - `POST /api/auth/logout`
+- `GET /api/widget/access?projectId=<id>`
 - `GET /api/projects`
 - `POST /api/projects`
 - `GET /api/projects/:id`
 - `DELETE /api/projects/:id`
-
-### Protected by `x-api-key`
-
+- `GET /api/projects/:id/members`
+- `POST /api/projects/:id/members`
+- `DELETE /api/projects/:id/members/:memberUserId`
+- `GET /api/comments?projectId=<id>&url=<page-url>`
 - `POST /api/comments`
 - `PUT /api/comments/:id`
 - `DELETE /api/comments/:id`
@@ -149,11 +147,7 @@ Creating a comment expects:
 }
 ```
 
-Requests that create, update, or delete comments must include:
-
-```text
-x-api-key: your-project-api-key
-```
+All comment endpoints are session-authenticated and require the current user to be a member of the target project.
 
 ## Widget
 
@@ -163,10 +157,10 @@ The widget file is served from the repo-level `widget/` directory through:
 GET /widget.js
 ```
 
-The frontend generates a script tag that points to this file and includes project metadata through `data-*` attributes.
+The frontend generates a script tag that points to this file with `data-project-id` and `data-api-url`. The widget checks the current session cookie before it renders.
 
 ## Notes
 
 - CORS is currently permissive and allows credentialed requests
-- Auth cookies are configured for local development with `secure: false`
+- For production embeds, use HTTPS with `COOKIE_SAMESITE=none` and `COOKIE_SECURE=true`
 - There is currently no automated test script in this package
